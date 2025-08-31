@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>통신 3사 위약금 계산기 (단일 HTML)</title>
+<style>
+  :root{
+    --bg:#0b1220; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --accent:#60a5fa; --bd:#293243; --good:#10b981; --warn:#f59e0b; --danger:#ef4444;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,Pretendard,sans-serif}
+  .container{max-width:1100px;margin:0 auto;padding:20px}
+  h1{font-size:clamp(22px,2.6vw,32px);margin:8px 0 16px}
+  p.lead{color:var(--muted);margin:-6px 0 18px}
+  .grid{display:grid;grid-template-columns: repeat(12,1fr); gap:14px}
+  .card{grid-column:span 12;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px}
+  @media (min-width:900px){.left{grid-column:span 4}.right{grid-column:span 8}.row{grid-column:span 12}}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  select,input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--bd);background:#0f172a;color:var(--text)}
+  .inline{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .inline3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+  .kpi .box{background:#0f172a;border:1px solid var(--bd);border-radius:12px;padding:12px}
+  .kpi .num{font-weight:700;font-size:18px}
+  table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+  thead th{position:sticky;top:0;background:#0f172a;border-bottom:1px solid var(--bd);text-align:right;padding:10px;color:var(--muted)}
+  thead th:first-child, tbody td:first-child{text-align:center}
+  tbody td{border-bottom:1px dashed #1f2937;padding:8px 10px;text-align:right}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  button{padding:10px 12px;border-radius:10px;border:1px solid var(--bd);background:#0f172a;color:var(--text);cursor:pointer}
+  button.primary{background:var(--accent);color:#0b1220;border-color:transparent;font-weight:700}
+  .note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6}
+  .spark{height:110px;background:#0f172a;border:1px solid var(--bd);border-radius:12px;margin-top:10px;display:flex;align-items:center;justify-content:center}
+  .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#0f172a;border:1px solid var(--bd);color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>통신 3사 위약금 계산기 <span class="badge">v1 · 선형 추정 모델</span></h1>
+    <p class="lead">기본 가정: <strong>예상 위약금 = (인터넷 무약정요금 − 3년약정요금) × 잔여개월</strong> · IPTV/Wi‑Fi/셋탑 할인은 미포함(데이터 부재) · 참고용 추정치</p>
+
+    <div class="grid">
+      <!-- Left: Controls -->
+      <section class="card left">
+        <div class="inline">
+          <div>
+            <label>통신사</label>
+            <select id="carrier"></select>
+          </div>
+          <div>
+            <label>인터넷 속도</label>
+            <select id="speed"></select>
+          </div>
+        </div>
+
+        <div class="inline3" style="margin-top:10px">
+          <div>
+            <label>약정 개월 (기본 36)</label>
+            <input id="contract" type="number" min="1" max="60" value="36">
+          </div>
+          <div>
+            <label>감면 계수 (0~1, 기본 1)</label>
+            <input id="factor" type="number" min="0" max="1" step="0.01" value="1">
+          </div>
+          <div>
+            <label>표시 구간 (개월)</label>
+            <input id="range" type="number" min="1" max="60" value="36">
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="box"><div class="label">월 할인액(인터넷)</div><div class="num" id="kpi-discount">-</div></div>
+          <div class="box"><div class="label">3년약정 월 청구(합산)</div><div class="num" id="kpi-monthly">-</div></div>
+          <div class="box"><div class="label">1개월차 예상 위약금</div><div class="num" id="kpi-first">-</div></div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="recalc">계산하기</button>
+          <button id="copy">표 복사</button>
+        </div>
+
+        <div class="note">
+          • 감면계수는 통신사별 감면/예외 규칙(예: KT 180일 제외 등)을 일괄 계수로 반영할 때 사용합니다.<br/>
+          • 실제 청구는 각 사 정책·프로모션·설치장비·경품 등으로 달라질 수 있습니다.
+        </div>
+      </section>
+
+      <!-- Right: Results -->
+      <section class="card right">
+        <svg id="spark" class="spark" viewBox="0 0 800 110" preserveAspectRatio="none"></svg>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:80px">사용</th>
+              <th>잔여</th>
+              <th>예상 위약금(원)</th>
+              <th>월 할인액</th>
+              <th>월 청구합계</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </section>
+
+      <!-- Data card (숨김 처리) -->
+      <section class="card row" style="display:none">
+        <strong>요금표(입력 데이터)</strong>
+        <div class="note">표시는 숨김 처리되었습니다.</div>
+        <pre id="dataset"></pre>
+      </section>
+    </div>
+  </div>
+
+<script>
+  // ====== 데이터: 쟁이님 표를 구조화 ======
+  const PRODUCTS = {
+    "KT": [
+      {speed:"100M", noContract:39600, contract36:22000, iptvType:"슬림", iptvFee:11000, wifiType:"홈AX", wifiFee:1100, settop:"지니A", settopFee:3300},
+      {speed:"500M", noContract:46200, contract36:33000, iptvType:"베이직", iptvFee:12100, wifiType:"6D", wifiFee:2200, settop:"기가지니3", settopFee:4400},
+      {speed:"1기가", noContract:55000, contract36:38500, iptvType:"에센스", iptvFee:16500, wifiType:"7D", wifiFee:2200, settop:"", settopFee:0},
+    ],
+    "SK": [
+      {speed:"100M", noContract:36300, contract36:22000, iptvType:"일반형", iptvFee:10890, wifiType:"", wifiFee:0, settop:"UHD4", settopFee:4400},
+      {speed:"500M", noContract:49500, contract36:33000, iptvType:"베이직", iptvFee:12100, wifiType:"", wifiFee:0, settop:"", settopFee:0},
+      {speed:"1기가", noContract:55000, contract36:38500, iptvType:"프리미엄", iptvFee:16500, wifiType:"", wifiFee:0, settop:"사운드바", settopFee:8800},
+    ],
+    "U+": [
+      {speed:"100M", noContract:42900, contract36:22000, iptvType:"이코노미", iptvFee:9900, wifiType:"기가", wifiFee:2200, settop:"", settopFee:0},
+      {speed:"500M", noContract:56100, contract36:33000, iptvType:"스탠다드", iptvFee:13200, wifiType:"프리미엄", wifiFee:1100, settop:"", settopFee:0},
+      {speed:"1기가", noContract:64900, contract36:38500, iptvType:"ALL", iptvFee:16500, wifiType:"", wifiFee:0, settop:"", settopFee:0},
+    ]
+  }
+
+  // ====== 유틸 ======
+  const fmt = (n)=> (Math.round(n)).toLocaleString('ko-KR')
+  const $ = (id)=> document.getElementById(id)
+
+  // ====== 초기화 ======
+  const carrierSel = $("carrier")
+  const speedSel   = $("speed")
+  const tbody      = $("tbody")
+  const contractIn = $("contract")
+  const factorIn   = $("factor")
+  const rangeIn    = $("range")
+
+  function init() {
+    carrierSel.innerHTML = Object.keys(PRODUCTS).map(v=>`<option value="${v}">${v}</option>`).join('')
+    fillSpeed()
+    recalc()
+
+    $("recalc").addEventListener('click', recalc)
+    carrierSel.addEventListener('change', ()=>{ fillSpeed(); recalc() })
+    speedSel.addEventListener('change', recalc)
+    contractIn.addEventListener('change', recalc)
+    factorIn.addEventListener('change', recalc)
+    rangeIn.addEventListener('change', recalc)
+    $("copy").addEventListener('click', copyTable)
+
+    // show dataset for transparency
+    $("dataset").textContent = JSON.stringify(PRODUCTS, null, 2)
+  }
+
+  function fillSpeed(){
+    const list = PRODUCTS[carrierSel.value] || []
+    speedSel.innerHTML = list.map(p=>`<option value="${p.speed}">${p.speed}</option>`).join('')
+  }
+
+  function getProduct(){
+    const list = PRODUCTS[carrierSel.value] || []
+    return list.find(p=> p.speed === speedSel.value) || list[0]
+  }
+
+  // ====== 계산 핵심 ======
+  function recalc(){
+    const p = getProduct()
+    if(!p) return
+    const months = Math.max(1, Math.min(60, Number(rangeIn.value)||36))
+    const contract = Math.max(1, Math.min(60, Number(contractIn.value)||36))
+    const factor = Math.max(0, Math.min(1, Number(factorIn.value)||1))
+    const monthlyDiscount = (p.noContract - p.contract36)
+    const monthlyBill = p.contract36 + p.iptvFee + p.wifiFee + p.settopFee
+
+    // KPI
+    $("kpi-discount").textContent = `${fmt(monthlyDiscount)} 원`
+    $("kpi-monthly").textContent = `${fmt(monthlyBill)} 원`
+    $("kpi-first").textContent = `${fmt(monthlyDiscount * (contract-1) * factor)} 원`
+
+    // 테이블 렌더
+    const rows = []
+    const series = []
+    for(let used=1; used<=months; used++){
+      const remain = Math.max(contract - used, 0)
+      const penalty = monthlyDiscount * remain * factor
+      rows.push(`<tr><td>${used}개월</td><td>${remain}</td><td>${fmt(penalty)}</td><td>${fmt(monthlyDiscount)}</td><td>${fmt(monthlyBill)}</td></tr>`)
+      series.push(penalty)
+    }
+    tbody.innerHTML = rows.join('')
+    drawSpark(series)
+  }
+
+  // ====== 간단 스파크라인 (SVG) ======
+  function drawSpark(arr){
+    const w=800, h=110, pad=12
+    const max = Math.max(...arr, 1)
+    const pts = arr.map((v,i)=>{
+      const x = pad + (w-2*pad) * (i/(arr.length-1||1))
+      const y = h - pad - (h-2*pad) * (v/max)
+      return [x,y]
+    })
+    const path = pts.map((p,i)=> (i?`L${p[0]},${p[1]}`:`M${p[0]},${p[1]}`)).join(' ')
+    const area = path + ` L ${w-pad},${h-pad} L ${pad},${h-pad} Z`
+    const svg = $("spark")
+    svg.innerHTML = `
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${getComputedStyle(document.body).getPropertyValue('--accent').trim()}" stop-opacity="0.7"/>
+          <stop offset="100%" stop-color="${getComputedStyle(document.body).getPropertyValue('--accent').trim()}" stop-opacity="0.05"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="800" height="110" fill="#0f172a"/>
+      <path d="${area}" fill="url(#g)" />
+      <path d="${path}" fill="none" stroke="${getComputedStyle(document.body).getPropertyValue('--accent').trim()}" stroke-width="2" />`
+  }
+
+  // ====== 복사 ======
+  function copyTable(){
+    const rows = [["사용개월","잔여개월","예상 위약금(원)","월 할인액","월 청구합계"]]
+    for(const tr of tbody.querySelectorAll('tr')){
+      const tds = [...tr.querySelectorAll('td')].map(td=>td.textContent.replace(/[,원]/g,''))
+      rows.push(tds)
+    }
+    const text = rows.map(r=> r.join('\t')).join('\n')
+    navigator.clipboard.writeText(text).then(()=>{
+      alert('표가 복사되었습니다. 스프레드시트에 붙여넣기 하세요.')
+    })
+  }
+
+  // start
+  init()
+</script>
+</body>
+</html>
