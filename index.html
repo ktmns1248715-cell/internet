@@ -37,8 +37,9 @@
 </head>
 <body>
   <div class="container">
-    <h1>통신 3사 위약금 계산기 <span class="badge">v1 · 선형 추정 모델</span></h1>
-    <p class="lead">기본 가정: <strong>예상 위약금 = (인터넷 무약정요금 − 3년약정요금) × 잔여개월</strong> · IPTV/Wi‑Fi/셋탑 할인은 미포함(데이터 부재) · 참고용 추정치</p>
+    <h1>통신 3사 위약금 계산기 <span class="badge">v20250831</span></h1>
+    <p class="lead">기본 추정 : <strong>예상 위약금=(인터넷 무약정요금−3년약정요금)×잔여개월</strong> <br>IPTV/Wi‑Fi/셋탑 할인은 미포함 · 참고용 추정치<br>
+KT 동부소상공인 영업팀 대구프론티어센터 김영훈 제작</p>
 
     <div class="grid">
       <!-- Left: Controls -->
@@ -56,15 +57,15 @@
 
         <div class="inline3" style="margin-top:10px">
           <div>
-            <label>약정 개월 (기본 36)</label>
+            <label>약정 개월 <br>기본 36</label>
             <input id="contract" type="number" min="1" max="60" value="36">
           </div>
           <div>
-            <label>감면 계수 (0~1, 기본 1)</label>
+            <label>감면 계수 <br>0~1,기본1</label>
             <input id="factor" type="number" min="0" max="1" step="0.01" value="1">
           </div>
           <div>
-            <label>표시 구간 (개월)</label>
+            <label>표시 구간 <br>개월</label>
             <input id="range" type="number" min="1" max="60" value="36">
           </div>
         </div>
@@ -72,7 +73,7 @@
         <div class="kpi">
           <div class="box"><div class="label">월 할인액(인터넷)</div><div class="num" id="kpi-discount">-</div></div>
           <div class="box"><div class="label">3년약정 월 청구(합산)</div><div class="num" id="kpi-monthly">-</div></div>
-          <div class="box"><div class="label">1개월차 예상 위약금</div><div class="num" id="kpi-first">-</div></div>
+          <div class="box"><div class="label">1개월차 예상<br>위약금</div><div class="num" id="kpi-first">-</div></div>
         </div>
 
         <div class="actions">
@@ -81,8 +82,8 @@
         </div>
 
         <div class="note">
-          • 감면계수는 통신사별 감면/예외 규칙(예: KT 180일 제외 등)을 일괄 계수로 반영할 때 사용합니다.<br/>
-          • 실제 청구는 각 사 정책·프로모션·설치장비·경품 등으로 달라질 수 있습니다.
+          • 감면계수는 통신사별 감면/예외 규칙<br>(예: KT 180일 제외 등)을 일괄 계수로 반영할 때 사용합니다.<br/>
+          • 실제 청구는 각 사 정책·프로모션·설치장비·경품 등으로 <br>달라질 수 있습니다.
         </div>
       </section>
 
